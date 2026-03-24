@@ -1,0 +1,36 @@
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "dqmon"
+version = "0.1.0"
+description = "Zero-config data quality monitoring for dbt projects. pytest for your data."
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.9"
+authors = [{ name = "dqmon" }]
+keywords = ["dbt", "data-quality", "monitoring", "data-engineering", "observability"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python :: 3",
+    "Topic :: Database",
+    "Topic :: Software Development :: Quality Assurance",
+]
+dependencies = [
+    "typer>=0.9.0",
+    "rich>=13.0.0",
+    "pyyaml>=6.0",
+]
+
+[project.optional-dependencies]
+bigquery = ["google-cloud-bigquery>=3.0.0"]
+
+[project.scripts]
+dqmon = "dqmon.cli:app"
+
+[project.urls]
+Homepage = "https://github.com/dqmon/dqmon"
+Documentation = "https://dqmon.dev"
+Repository = "https://github.com/dqmon/dqmon"

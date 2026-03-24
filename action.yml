@@ -1,0 +1,81 @@
+name: 'dqmon - Data Quality Check'
+description: 'Zero-config data quality monitoring for dbt projects'
+branding:
+  icon: 'check-circle'
+  color: 'green'
+
+inputs:
+  dbt-project-path:
+    description: 'Path to dbt project directory'
+    required: false
+    default: '.'
+  manifest-path:
+    description: 'Path to manifest.json (default: auto-detect in target/)'
+    required: false
+  fail-on-warnings:
+    description: 'Fail the action on warnings (not just errors)'
+    required: false
+    default: 'false'
+  comment-on-pr:
+    description: 'Post results as PR comment'
+    required: false
+    default: 'true'
+
+outputs:
+  passed:
+    description: 'Number of passed checks'
+  warnings:
+    description: 'Number of warning checks'
+  failed:
+    description: 'Number of failed checks'
+  report:
+    description: 'Path to generated markdown report'
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+
+    - name: Install dqmon
+      shell: bash
+      run: pip install dqmon
+
+    - name: Run dqmon check
+      id: check
+      shell: bash
+      run: |
+        set +e
+        dqmon report ${{ inputs.dbt-project-path }} --output dqmon-report.md
+        EXIT_CODE=$?
+        echo "exit_code=$EXIT_CODE" >> $GITHUB_OUTPUT
+
+        # Parse results from report
+        if [ -f dqmon-report.md ]; then
+          echo "report=dqmon-report.md" >> $GITHUB_OUTPUT
+        fi
+
+        if [ "${{ inputs.fail-on-warnings }}" = "true" ] && [ $EXIT_CODE -ne 0 ]; then
+          exit $EXIT_CODE
+        elif [ $EXIT_CODE -gt 1 ]; then
+          exit $EXIT_CODE
+        fi
+
+    - name: Comment on PR
+      if: inputs.comment-on-pr == 'true' && github.event_name == 'pull_request'
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const fs = require('fs');
+          const reportPath = 'dqmon-report.md';
+          if (fs.existsSync(reportPath)) {
+            const report = fs.readFileSync(reportPath, 'utf8');
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: report
+            });
+          }
