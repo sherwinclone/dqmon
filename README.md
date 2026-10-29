@@ -23,6 +23,29 @@ dqmon report        # generate quality report
 
 dqmon reads your existing `target/manifest.json` — no additional YAML, no new config files, no account needed.
 
+## GitHub Action
+
+```yaml
+- uses: sherwinclone/dqmon@master
+  id: dqmon
+  with:
+    dbt-project-path: .
+    fail-on-warnings: false
+```
+
+`dqmon report` exits 0 when every check passes. It exits 1 when any check fails. Warnings exit 1 only when `fail-on-warnings` is `true`. The action step uses that exit code, so the job fails on the same conditions. Counts are still published when the step fails.
+
+| Output | Meaning |
+| --- | --- |
+| `passed` | Number of checks that passed |
+| `warnings` | Number of checks that warned |
+| `failed` | Number of checks that failed |
+| `report` | Path to the markdown report (`dqmon-report.md`), or empty if it was not written |
+
+```yaml
+- run: echo "${{ steps.dqmon.outputs.passed }} passed, ${{ steps.dqmon.outputs.failed }} failed"
+```
+
 ## License
 
 MIT

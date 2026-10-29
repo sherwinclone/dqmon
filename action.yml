@@ -23,13 +23,17 @@ inputs:
 
 outputs:
   passed:
-    description: 'Number of passed checks'
+    description: 'Number of checks that passed. Written from the markdown report, including when the step fails.'
+    value: ${{ steps.check.outputs.passed }}
   warnings:
-    description: 'Number of warning checks'
+    description: 'Number of checks that warned. Written from the markdown report, including when the step fails.'
+    value: ${{ steps.check.outputs.warnings }}
   failed:
-    description: 'Number of failed checks'
+    description: 'Number of checks that failed. Written from the markdown report, including when the step fails.'
+    value: ${{ steps.check.outputs.failed }}
   report:
-    description: 'Path to generated markdown report'
+    description: 'Workspace-relative path of the markdown report (dqmon-report.md). Empty when no report file was written.'
+    value: ${{ steps.check.outputs.report }}
 
 runs:
   using: 'composite'
@@ -41,27 +45,42 @@ runs:
 
     - name: Install dqmon
       shell: bash
-      run: pip install dqmon
+      run: pip install "${{ github.action_path }}"
 
     - name: Run dqmon check
       id: check
       shell: bash
       run: |
         set +e
-        dqmon report ${{ inputs.dbt-project-path }} --output dqmon-report.md
+        EXTRA_ARGS=()
+        if [ "${{ inputs.fail-on-warnings }}" = "true" ]; then
+          EXTRA_ARGS+=(--fail-on-warnings)
+        fi
+        dqmon report "${{ inputs.dbt-project-path }}" --output dqmon-report.md "${EXTRA_ARGS[@]}"
         EXIT_CODE=$?
-        echo "exit_code=$EXIT_CODE" >> $GITHUB_OUTPUT
 
-        # Parse results from report
+        PASSED=0
+        WARNINGS=0
+        FAILED=0
+        REPORT_PATH=""
         if [ -f dqmon-report.md ]; then
-          echo "report=dqmon-report.md" >> $GITHUB_OUTPUT
+          REPORT_PATH="dqmon-report.md"
+          RESULTS_LINE=$(grep -E '^\*\*Results:\*\*' dqmon-report.md || true)
+          if [ -n "$RESULTS_LINE" ]; then
+            PASSED=$(printf '%s\n' "$RESULTS_LINE" | sed -n 's/.*\*\*Results:\*\* \([0-9][0-9]*\) passed.*/\1/p')
+            WARNINGS=$(printf '%s\n' "$RESULTS_LINE" | sed -n 's/.*| \([0-9][0-9]*\) warnings.*/\1/p')
+            FAILED=$(printf '%s\n' "$RESULTS_LINE" | sed -n 's/.*| \([0-9][0-9]*\) failed.*/\1/p')
+          fi
         fi
 
-        if [ "${{ inputs.fail-on-warnings }}" = "true" ] && [ $EXIT_CODE -ne 0 ]; then
-          exit $EXIT_CODE
-        elif [ $EXIT_CODE -gt 1 ]; then
-          exit $EXIT_CODE
-        fi
+        {
+          echo "passed=${PASSED:-0}"
+          echo "warnings=${WARNINGS:-0}"
+          echo "failed=${FAILED:-0}"
+          echo "report=${REPORT_PATH}"
+        } >> "$GITHUB_OUTPUT"
+
+        exit "$EXIT_CODE"
 
     - name: Comment on PR
       if: inputs.comment-on-pr == 'true' && github.event_name == 'pull_request'
