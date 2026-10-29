@@ -31,6 +31,6 @@ bigquery = ["google-cloud-bigquery>=3.0.0"]
 dqmon = "dqmon.cli:app"
 
 [project.urls]
-Homepage = "https://github.com/dqmon/dqmon"
+Homepage = "https://github.com/sherwinclone/dqmon"
 Documentation = "https://dqmon.dev"
-Repository = "https://github.com/dqmon/dqmon"
+Repository = "https://github.com/sherwinclone/dqmon"

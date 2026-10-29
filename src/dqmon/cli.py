@@ -93,6 +93,11 @@ def check(
 def report(
     path: Optional[Path] = typer.Argument(None, help="Path to dbt project"),
     output: Optional[Path] = typer.Option(None, "--output", "-o", help="Output file (markdown)"),
+    fail_on_warnings: bool = typer.Option(
+        False,
+        "--fail-on-warnings",
+        help="Return exit code 1 when any check warns.",
+    ),
 ):
     """Generate a data quality report."""
     project_path = path or Path.cwd()
@@ -110,6 +115,11 @@ def report(
         console.print(f"[green]Report saved to {output}[/green]")
     else:
         print_report(results, console, verbose=True)
+
+    failed = sum(1 for r in results if r.status == "fail")
+    warned = sum(1 for r in results if r.status == "warn")
+    if failed > 0 or (fail_on_warnings and warned > 0):
+        raise typer.Exit(1)
 
 
 def _find_manifest(project_path: Path) -> Optional[Path]:
